@@ -15,6 +15,7 @@ class Server
 
         TcpClient client = listener.AcceptTcpClient();
         Console.WriteLine("Client connected!");
+        NetworkStream stream = client.GetStream();
         byte[] buffer = new byte[1024];
 
         int bytesRead = stream.Read(buffer, 0, buffer.Length);
