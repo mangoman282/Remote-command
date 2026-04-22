@@ -1,5 +1,5 @@
-
-﻿using System;
+using System.Diagnostics;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -37,7 +37,7 @@ class Server
         string output = process.StandardOutput.ReadToEnd();
         process.WaitForExit();
 
-        byte[] data = Encoding.UTF8.GetBytes(response);
+        byte[] data = Encoding.UTF8.GetBytes(output);
 
         stream.Write(data, 0, data.Length);
 
