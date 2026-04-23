@@ -8,7 +8,7 @@ class Client
     static void Main()
     {
         Console.Write("Enter server IP: ");
-        string ip = Console.ReadLine() ?? "";
+        string ip = Console.ReadLine() ?? "127.0.0.1";
         Console.Write("Enter port: ");
         int port = int.Parse(Console.ReadLine()?? "8080");
 
