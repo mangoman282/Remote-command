@@ -4,11 +4,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Diagnostics;
+using System.Threading;
 
 class Server
 {
     private static readonly string validUsername = "admin";
     private static readonly string validPassword = "1234";
+    
     static void Main()
     {
         TcpListener listener = new TcpListener(IPAddress.Any, 8080);
@@ -29,55 +31,39 @@ class Server
     static void HandleClient(TcpClient client)
     {
         NetworkStream stream = client.GetStream();
-        Send(stream, "AUTH_REQUIRED");
-        string? authLine = Recevice(stream);
-        if (authLine != null) {
-            Send(stream, "AUTH_FAIL");
-            stream.Close();
-            client.Close();
-            return;
-
-        }
-        string[] parts = authLine.Split(':');
-        if(parts.Length != 2) || parts[0].Trim() != validUsername || parts[1].Trim() != validPassword) {
-            Send(stream, "AUTH_FAIL");
-            stream.Close();
-            client.Close();
-            return;
-        }
-        Send(stream, "AUTH_SUCCESS");
-
-        while(true) {
-            string? command = Recevice(stream);
-            if (command == null) break;
-            
-            command = command.Trim();
-            Console.WriteLine("Command: " + command);
-            if (command.ToLower() == "exit")
-                {
-                    Send(stream, "Disconnected from server.");
-                    break;
-
-            }
-
-
-            byte[] buffer = new byte[1024];
         try
         {
+            Send(stream, "AUTH_REQUIRED");
+            string? authLine = Receive(stream);
+            if (authLine == null)
+            {
+                Send(stream, "AUTH_FAIL");
+                return;
+            }
+
+            string[] parts = authLine.Split('|');
+
+            if (parts.Length != 2) ||
+               parts[0].Trim() != validUsername ||
+               parts[1].Trim() != validPassword)
+               {
+                Send(stream, "AUTH_FAIL");
+                return;
+            }
+
+            Send(stream, "AUTH_OK");
+
             while (true)
             {
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead == 0)
-                    break;
+                string? command = Receive(stream);
+                if (command == null) break;
 
-                string command = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
+                command = command.Trim();
                 Console.WriteLine("Command: " + command);
 
                 if (command.ToLower() == "exit")
                 {
-                    string goodbye = "Disconnecred from server.";
-                    byte[] exitData = Encoding.UTF8.GetBytes(goodbye);
-                    stream.Write(exitData, 0, exitData.Length);
+                    Send(stream, "Disconnected from server.");
                     break;
                 }
 
@@ -101,33 +87,36 @@ class Server
                 string result = string.IsNullOrEmpty(output) ? error : output;
                 if (string.IsNullOrEmpty(result))
                     result = "Command executed with no output.";
-
-                byte[] data = Encoding.UTF8.GetBytes(result);
-                stream.Write(data, 0, data.Length);
+                Send(stream, result);
 
             }
         }
-   
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error: " + ex.Message);
+        }
+        finally
+        {
             stream.Close();
             client.Close();
-        }
+
+        } 
+    }
 
         static void Send(NetworkStream stream, string message)
-        {
+            {
             byte[] data = Encoding.UTF8.GetBytes(message);
             stream.Write(data, 0, data.Length);
             }
 
-        static string? Recevice(NetworkStream stream)
+        static string? Receive(NetworkStream stream)
             {
-                byte[] buffer = new byte[1024];
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead == 0) {
-                    return null;
+             byte[] buffer = new byte[1024];
+             int bytesRead = stream.Read(buffer, 0, buffer.Length);
+             if (bytesRead == 0) {
+                return null;
                 }
                 return Encoding.UTF8.GetString(buffer, 0, bytesRead);
             }
-
-
         }
-}
+
