@@ -43,7 +43,7 @@ class Server
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
             };
             Process process = new Process();
             process.StartInfo = psi;
