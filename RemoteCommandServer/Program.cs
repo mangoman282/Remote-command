@@ -7,6 +7,8 @@ using System.Diagnostics;
 
 class Server
 {
+    private static readonly string validUsername = "admin";
+    private static readonly string validPassword = "1234";
     static void Main()
     {
         TcpListener listener = new TcpListener(IPAddress.Any, 8080);
@@ -27,7 +29,39 @@ class Server
     static void HandleClient(TcpClient client)
     {
         NetworkStream stream = client.GetStream();
-        byte[] buffer = new byte[1024];
+        Send(stream, "AUTH_REQUIRED");
+        string? authLine = Recevice(stream);
+        if (authLine != null) {
+            Send(stream, "AUTH_FAIL");
+            stream.Close();
+            client.Close();
+            return;
+
+        }
+        string[] parts = authLine.Split(':');
+        if(parts.Length != 2) || parts[0].Trim() != validUsername || parts[1].Trim() != validPassword) {
+            Send(stream, "AUTH_FAIL");
+            stream.Close();
+            client.Close();
+            return;
+        }
+        Send(stream, "AUTH_SUCCESS");
+
+        while(true) {
+            string? command = Recevice(stream);
+            if (command == null) break;
+            
+            command = command.Trim();
+            Console.WriteLine("Command: " + command);
+            if (command.ToLower() == "exit")
+                {
+                    Send(stream, "Disconnected from server.");
+                    break;
+
+            }
+
+
+            byte[] buffer = new byte[1024];
         try
         {
             while (true)
@@ -73,15 +107,27 @@ class Server
 
             }
         }
-        catch
-        {
-        }
-        finally
-        {
+   
             stream.Close();
             client.Close();
         }
-      
 
-    }
+        static void Send(NetworkStream stream, string message)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(message);
+            stream.Write(data, 0, data.Length);
+            }
+
+        static string? Recevice(NetworkStream stream)
+            {
+                byte[] buffer = new byte[1024];
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                if (bytesRead == 0) {
+                    return null;
+                }
+                return Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            }
+
+
+        }
 }
